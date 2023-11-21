@@ -12,7 +12,7 @@
       "n_layers": 4,
       "num_mels": 80,
       "dropout": 0.1,
-      "fft_kernel_size_1": 0,
+      "fft_kernel_size_1": 9,
       "fft_padding_1": 4,
       "fft_kernel_size_2": 1,
       "fft_padding_2": 0,

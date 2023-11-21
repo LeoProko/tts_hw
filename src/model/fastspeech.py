@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 PAD_IDX = 0
 UNK_IDX = 1
@@ -36,7 +37,7 @@ class FFTBlock(nn.Module):
     ):
         super().__init__()
 
-        self.mha = nn.MultiheadAttention(emb_dim, num_heads, dropout)
+        self.mha = nn.MultiheadAttention(emb_dim, num_heads, dropout, batch_first=True)
         self.norm = nn.LayerNorm(emb_dim)
         self.conv = nn.Sequential(
             Transpose(1, 2),
@@ -59,7 +60,7 @@ class FFTBlock(nn.Module):
         )
 
     def forward(self, x, attn_mask):
-        x = x + self.norm(self.mha(x, x, x, attn_mask=attn_mask))
+        x = x + self.norm(self.mha(x, x, x, attn_mask=attn_mask)[0])
         x = x + self.conv(x)
 
         return x
@@ -84,6 +85,7 @@ class Encoder(nn.Module):
 
         self.embeddings = nn.Embedding(vocab_size, emb_dim, padding_idx=PAD_IDX)
         self.positions = nn.Embedding(max_seq_len + 1, emb_dim, padding_idx=PAD_IDX)
+        self.num_heads = num_heads
 
         self.layers = nn.Sequential(
             *[
@@ -105,7 +107,9 @@ class Encoder(nn.Module):
         x = self.embeddings(tokens) + self.positions(pos)
 
         attn_mask = tokens.eq(PAD_IDX).unsqueeze(1).expand(-1, tokens.size(1), -1)
-        x = self.layers(x, attn_mask)
+        attn_mask = attn_mask.repeat(self.num_heads, 1, 1)
+        for i in range(len(self.layers)):
+            x = self.layers[i](x, attn_mask)
 
         return x
 
@@ -134,12 +138,10 @@ class DurationPredictor(nn.Module):
     def forward(self, x):
         x = self.net(x)
 
-        out = self.relu(self.linear_layer(x)).squeeze()
-
         if not self.training:
-            out = out.unsqueeze(0)
+            x = x.unsqueeze(0)
 
-        return out
+        return x
 
 
 class LengthRegulator(nn.Module):
@@ -229,8 +231,11 @@ class Decoder(nn.Module):
             ]
         )
 
-    def forward(self, x):
-        x = x + self.positions(torch.tensor([]))
+    def forward(self, enc_out, enc_pos):
+        attn_mask = enc_pos.eq(model_config.PAD).unsqueeze(1).expand(-1, enc_pos.size(1), -1)
+        non_pad_mask = enc_pos.ne(model_config.PAD).type(torch.float).unsqueeze(-1)
+        
+        tokens = enc_out + self.positions(enc_pos)
 
         attn_mask = tokens.eq(PAD_IDX).unsqueeze(1).expand(-1, tokens.size(1), -1)
         x = self.layers(x, attn_mask)
@@ -314,7 +319,7 @@ class FastSpeech(nn.Module):
         *args,
         **kwargs
     ):
-        x, not_pad_mask = self.encoder(src_seq, src_pos)
+        x = self.encoder(src_seq, src_pos)
 
         if self.training:
             mel_output, duration_predictor_output = self.length_regulator(
