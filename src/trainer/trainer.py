@@ -9,12 +9,13 @@ import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torchvision.transforms import ToTensor
 from tqdm.auto import tqdm
+import torchaudio
 
 from src.base import BaseTrainer
 from src.base.base_text_encoder import BaseTextEncoder
 from src.logger.utils import plot_spectrogram_to_buf
 from src.metric.utils import calc_cer, calc_wer
-from src.utils import inf_loop, MetricTracker
+from src.utils import inf_loop, MetricTracker, synthesis
 
 
 class Trainer(BaseTrainer):
@@ -55,10 +56,17 @@ class Trainer(BaseTrainer):
         self.log_step = 50
 
         self.train_metrics = MetricTracker(
-            "loss", "grad norm", *[m.name for m in self.metrics], writer=self.writer
+            "mel_loss",
+            "duration_loss",
+            "grad norm",
+            *[m.name for m in self.metrics],
+            writer=self.writer,
         )
         self.evaluation_metrics = MetricTracker(
-            "loss", *[m.name for m in self.metrics], writer=self.writer
+            "mel_loss",
+            "duration_loss",
+            *[m.name for m in self.metrics],
+            writer=self.writer,
         )
 
     @staticmethod
@@ -117,14 +125,18 @@ class Trainer(BaseTrainer):
                     self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                     self.logger.debug(
                         "Train Epoch: {} {} Loss: {:.6f}".format(
-                            epoch, self._progress(batch_idx), db["loss"].item()
+                            epoch,
+                            self._progress(batch_idx),
+                            (db["mel_loss"].item() + db["duration_loss"].item()),
                         )
                     )
                     self.writer.add_scalar(
                         "learning rate", self.lr_scheduler.get_last_lr()[0]
                     )
+                    self.model.eval()
                     self._log_predictions(is_train=True, **db)
-                    # self._log_spectrogram(db["spectrogram"])
+                    self.model.train()
+                    self._log_spectrogram(db["mel_output"])
                     self._log_scalars(self.train_metrics)
                     # we don't want to reset train metrics at the start of every epoch
                     # because we are interested in recent train metrics
@@ -144,25 +156,19 @@ class Trainer(BaseTrainer):
         batch = self.move_batch_to_device(batch, self.device)
         if is_train:
             self.optimizer.zero_grad()
-        outputs = self.model(**batch)
-        if type(outputs) is dict:
-            batch.update(outputs)
-        else:
-            batch["logits"] = outputs
 
-        batch["log_probs"] = F.log_softmax(batch["logits"], dim=-1)
-        batch["log_probs_length"] = self.model.transform_input_lengths(
-            batch["spectrogram_length"]
-        )
-        batch["loss"] = self.criterion(**batch)
+        batch["mel_output"], batch["duration_predicted"] = self.model(**batch)
+        batch["mel_loss"], batch["duration_loss"] = self.criterion(**batch)
+
         if is_train:
-            batch["loss"].backward()
+            (batch["mel_loss"] + batch["duration_loss"]).backward()
             self._clip_grad_norm()
             self.optimizer.step()
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
-        metrics.update("loss", batch["loss"].item())
+        metrics.update("mel_loss", batch["mel_loss"].item())
+        metrics.update("duration_loss", batch["duration_loss"].item())
         if is_train:
             for met in self.metrics:
                 metrics.update(met.name, met(**batch))
@@ -208,78 +214,34 @@ class Trainer(BaseTrainer):
             total = self.len_epoch
         return base.format(current, total, 100.0 * current / total)
 
+    def load_audio(self, path):
+        audio_tensor, sr = torchaudio.load(path)
+        audio_tensor = audio_tensor[0:1, :]
+        target_sr = self.config["preprocessing"]["sr"]
+        if sr != target_sr:
+            audio_tensor = torchaudio.functional.resample(audio_tensor, sr, target_sr)
+        return audio_tensor
+
     def _log_predictions(
         self,
         is_train,
-        text,
-        log_probs,
-        log_probs_length,
-        audio_path,
-        examples_to_log=10,
         *args,
         **kwargs,
     ):
-        # TODO: implement logging of beam search results
-        if self.writer is None:
-            return
-        argmax_inds = log_probs.cpu().argmax(-1).numpy()
-        argmax_inds = [
-            inds[: int(ind_len)]
-            for inds, ind_len in zip(argmax_inds, log_probs_length.numpy())
-        ]
-        argmax_texts_raw = [self.text_encoder.decode(inds) for inds in argmax_inds]
-        argmax_texts = [self.text_encoder.ctc_decode(inds) for inds in argmax_inds]
-
-        tuples = list(
-            zip(
-                argmax_texts,
-                log_probs,
-                log_probs_length,
-                text,
-                argmax_texts_raw,
-                audio_path,
+        for i, text in enumerate(
+            [
+                "Suck my big dick",
+                "A defibrillator is a device that gives a high energy electric shock to the heart of someone who is in cardiac arrest",
+                "Massachusetts Institute of Technology may be best known for its math, science and engineering education",
+                "Wasserstein distance or Kantorovich Rubinstein metric is a distance function defined between probability distributions on a given metric space",
+            ]
+        ):
+            synthesis.synthesis(self.model, text, str(i))
+            self.writer.add_audio(
+                str(i),
+                self.load_audio(f"{i}.wav"),
+                sample_rate=self.config["preprocessing"]["sr"],
             )
-        )
-        shuffle(tuples)
-
-        rows = {}
-        for (
-            argmax_pred,
-            log_prob,
-            log_prob_length,
-            target,
-            raw_pred,
-            audio_path,
-        ) in tuples[:examples_to_log]:
-            if not is_train:
-                beam_pred = self.text_encoder.ctc_beam_search(
-                    log_prob.exp(), log_prob_length, self.config["trainer"]["beam_size"]
-                )[0].text
-
-            target = BaseTextEncoder.normalize_text(target)
-            argmax_wer = calc_wer(target, argmax_pred) * 100
-            argmax_cer = calc_cer(target, argmax_pred) * 100
-
-            if not is_train:
-                beam_wer = calc_wer(target, beam_pred) * 100
-                beam_cer = calc_cer(target, beam_pred) * 100
-
-            rows[Path(audio_path).name] = {
-                "target": target,
-                "raw prediction": raw_pred,
-                "argmax_pred": argmax_pred,
-                "argmax_wer": argmax_wer,
-                "argmax_cer": argmax_cer,
-            }
-
-            if not is_train:
-                rows[Path(audio_path).name]["beam_pred"] = beam_pred
-                rows[Path(audio_path).name]["beam_wer"] = beam_wer
-                rows[Path(audio_path).name]["beam_cer"] = beam_cer
-
-        self.writer.add_table(
-            "predictions", pd.DataFrame.from_dict(rows, orient="index")
-        )
 
     def _log_spectrogram(self, spectrogram_batch):
         spectrogram = random.choice(spectrogram_batch.cpu())
