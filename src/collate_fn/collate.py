@@ -35,16 +35,17 @@ def pad_2D_tensor(inputs, maxlen=None):
     return output
 
 
-def reprocess_tensor(batch, cut_list, max_len):
-    texts = [batch[ind]["src_seq"] for ind in cut_list]
-    mel_targets = [batch[ind]["mel_target"] for ind in cut_list]
-    durations = [batch[ind]["length_target"] for ind in cut_list]
+def reprocess_tensor(batch):
+    texts = [item["src_seq"] for item in batch]
+    mel_targets = [item["mel_target"] for item in batch]
+    durations = [item["length_target"] for item in batch]
 
     length_text = []
     for text in texts:
         length_text.append(text.size(0))
 
     src_pos = list()
+    max_len = int(max(length_text))
     for length_src_row in length_text:
         src_pos.append(
             np.pad(
@@ -92,14 +93,11 @@ def collate_fn(batch: List[dict]):
     index_arr = np.argsort(-len_arr)
     batchsize = len(batch)
 
-    cut_list = list()
-    for i in range(batchsize):
-        cut_list.append(index_arr[i : (i + 1)])
+    return reprocess_tensor(batch)
 
-    max_len = max([item["src_seq"] for item in batch])
     output = list()
     for i in range(batchsize):
-        output.append(reprocess_tensor(batch, cut_list[i], max_len))
+        output.append(reprocess_tensor(batch, cut_list[i]))
 
     return {
         "src_seq": torch.stack([item["src_seq"] for item in output]),
