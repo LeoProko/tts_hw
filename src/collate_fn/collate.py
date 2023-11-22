@@ -101,6 +101,8 @@ def collate_fn(batch: List[dict]):
     for i in range(batchsize):
         output.append(reprocess_tensor(batch, cut_list[i]))
 
+    print(output)
+    print([item["src_seq"] for item in output])
     return {
         "src_seq": torch.tensor([item["src_seq"] for item in output]),
         "mel_target": torch.tensor([item["mel_target"] for item in output]),
