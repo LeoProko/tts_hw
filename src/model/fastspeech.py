@@ -241,7 +241,7 @@ class Decoder(nn.Module):
         attn_mask = attn_mask.repeat(self.num_heads, 1, 1)
         # non_pad_mask = enc_pos.ne(PAD_IDX).type(torch.float).unsqueeze(-1)
 
-        x = enc_out + self.positions(enc_pos).to(enc_out.device)
+        x = enc_out + self.positions(enc_pos.to(enc_out.device))
 
         for i in range(len(self.layers)):
             x = self.layers[i](x, attn_mask)
