@@ -207,9 +207,11 @@ class Trainer(BaseTrainer):
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
         if hasattr(self.train_dataloader, "n_samples"):
+            print('check 1', batch_idx, self.train_dataloader.batch_size)
             current = batch_idx * self.train_dataloader.batch_size
             total = self.train_dataloader.n_samples
         else:
+            print('check 2', batch_idx)
             current = batch_idx
             total = self.len_epoch
         return base.format(current, total, 100.0 * current / total)
