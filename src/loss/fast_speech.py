@@ -14,9 +14,8 @@ class FastSpeechLoss(nn.Module):
     ):
         mel_loss = self.mse_loss(mel_output, mel_target)
 
-        print(duration_predicted.shape, length_target.shape)
         duration_predictor_loss = self.duration_loss(
-            torch.log1p(duration_predicted),
+            torch.log1p(duration_predicted.squeeze()),
             torch.log1p(length_target.float()),
         )
 
