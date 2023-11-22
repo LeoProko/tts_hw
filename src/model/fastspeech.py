@@ -238,7 +238,7 @@ class Decoder(nn.Module):
 
     def forward(self, enc_out, enc_pos):
         attn_mask = enc_pos.eq(PAD_IDX).unsqueeze(1).expand(-1, enc_pos.size(1), -1)
-        attn_mask = attn_mask.repeat(self.num_heads, 1, 1)
+        attn_mask = attn_mask.repeat(self.num_heads, 1, 1).to(enc_out.device)
         # non_pad_mask = enc_pos.ne(PAD_IDX).type(torch.float).unsqueeze(-1)
 
         x = enc_out + self.positions(enc_pos.to(enc_out.device))
