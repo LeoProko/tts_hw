@@ -6,11 +6,8 @@ import text as text_module
 import audio
 import utils
 
-device = "cpu"
-WaveGlow = utils.get_WaveGlow("cpu")
-
-if device != "cpu":
-    WaveGlow = WaveGlow.cuda()
+WaveGlow = utils.get_WaveGlow()
+WaveGlow = WaveGlow.cuda()
 
 
 def synthesis(model, text, output_path, alpha=1.0):
@@ -24,4 +21,4 @@ def synthesis(model, text, output_path, alpha=1.0):
     with torch.no_grad():
         mel = model.forward(sequence, src_pos, alpha=alpha).contiguous().transpose(1, 2)
 
-    waveglow.inference.inference(mel_cuda, WaveGlow, f"{output_path}.wav")
+    waveglow.inference.inference(mel, WaveGlow, f"{output_path}.wav")

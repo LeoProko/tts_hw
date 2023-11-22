@@ -31,15 +31,12 @@ def get_mask_from_lengths(lengths, max_len=None):
     return mask
 
 
-def get_WaveGlow(device):
+def get_WaveGlow():
     waveglow_path = os.path.join("waveglow", "pretrained_model")
     waveglow_path = os.path.join(waveglow_path, "waveglow_256channels.pt")
-    wave_glow = torch.load(waveglow_path, map_location=device)["model"]
+    wave_glow = torch.load(waveglow_path)["model"]
     wave_glow = wave_glow.remove_weightnorm(wave_glow)
-    if device == "cpu":
-        wave_glow.eval()
-    else:
-        wave_glow.cuda().eval()
+    wave_glow.cuda().eval()
     for m in wave_glow.modules():
         if "Conv" in str(type(m)):
             setattr(m, "padding_mode", "zeros")

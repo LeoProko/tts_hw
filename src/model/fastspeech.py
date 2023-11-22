@@ -60,7 +60,7 @@ class FFTBlock(nn.Module):
         )
 
     def forward(self, x, attn_mask):
-        print('5555555', x.shape, attn_mask.shape)
+        print("5555555", x.shape, attn_mask.shape)
         x = x + self.norm(self.mha(x, x, x, attn_mask=attn_mask)[0])
         x = x + self.conv(x)
 
@@ -154,7 +154,7 @@ class LengthRegulator(nn.Module):
 
     @staticmethod
     def create_alignment(base_mat, duration_predictor_output):
-        print('huyhuyhuy', duration_predictor_output.shape)
+        print("huyhuyhuy", duration_predictor_output.shape)
         N, L = duration_predictor_output.shape
         for i in range(N):
             count = 0
@@ -165,7 +165,11 @@ class LengthRegulator(nn.Module):
         return base_mat
 
     def LR(self, x, duration_predictor_output, mel_max_len=None):
-        expand_max_len = torch.max(torch.sum(duration_predictor_output, -1), -1)[0]
+        print("LRRRRRRR 1", x.shape, duration_predictor_output.shape)
+        expand_max_len = max(
+            torch.max(torch.sum(duration_predictor_output, -1), -1)[0].item(), 1
+        )
+        print("LRRRRRRR 2", expand_max_len)
         alignment = torch.zeros(
             duration_predictor_output.size(0),
             expand_max_len,
@@ -176,23 +180,34 @@ class LengthRegulator(nn.Module):
         )
         alignment = torch.from_numpy(alignment).to(x.device)
 
+        print("LRRRRRRR 3", alignment.shape)
+
         output = alignment @ x
+        print("MEL MAX", output.shape)
         if mel_max_len:
             output = F.pad(output, (0, 0, 0, mel_max_len - output.size(1), 0, 0))
+        print("MEL MAX", output.shape)
         return output
 
     def forward(self, x, alpha=1.0, target=None, mel_max_len=None):
         print("3333333", x.shape)
         duration = self.duration_predictor(x)
+        print("FUCK YOU 0", x)
+        print("FUCK YOU", duration)
         print("4444444", duration.shape)
 
         if target is not None:
+            print(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;", x.shape, target.shape)
             output = self.LR(x, target, mel_max_len)
+            print(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;", output.shape)
             return output, duration
 
         duration = (duration * alpha + 0.5).int()
 
+        # output = self.LR(x, duration.squeeze(-1))
+        print(":::::::::::::::::::::::::::::::", x.shape, duration.shape)
         output = self.LR(x, duration.squeeze(-1))
+        print(":::::::::::::::::::::::::::::::", output.shape)
 
         mel_pos = torch.stack(
             [torch.tensor([i + 1 for i in range(output.size(1))])]
@@ -245,6 +260,7 @@ class Decoder(nn.Module):
         x = enc_out + self.positions(enc_pos)
 
         for i in range(len(self.layers)):
+            print("blblbbblbl", x.shape, attn_mask.shape)
             x = self.layers[i](x, attn_mask)
 
         return x
@@ -326,13 +342,17 @@ class FastSpeech(nn.Module):
         *args,
         **kwargs
     ):
-        print('11111', src_seq.shape, src_pos.shape)
+        print("11111", src_seq.shape, src_pos.shape)
         x = self.encoder(src_seq, src_pos)
-        print('22222', x.shape)
+        print("22222", x.shape)
 
         if self.training:
+            print("iiiiiiiii", x.shape)
             mel_output, duration_predictor_output = self.length_regulator(
                 x, alpha, length_target, mel_max_len
+            )
+            print(
+                "i;i;i;i;i;i;i;i;i;", mel_output.shape, duration_predictor_output.shape
             )
             mel_output = self.decoder(mel_output, mel_pos)
             mel_output = self.mask_tensor(mel_output, mel_pos, mel_max_len)
@@ -340,7 +360,9 @@ class FastSpeech(nn.Module):
 
             return mel_output, duration_predictor_output
 
+        print("pre ioioioioioioio", x.shape)
         mel_output, mel_pos = self.length_regulator(x, alpha)
+        print("ioioioioioioio", mel_output.shape, mel_pos.shape)
         mel_output = self.decoder(mel_output, mel_pos)
         mel_output = self.mel_linear(mel_output)
 
