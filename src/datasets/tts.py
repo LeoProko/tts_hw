@@ -54,7 +54,7 @@ def get_data_to_buffer(
 
 class BufferDataset(torch.utils.data.Dataset):
     def __init__(
-        self, data_path, mel_ground_truth, alignment_path, text_cleaners, limit
+        self, data_path, mel_ground_truth, alignment_path, text_cleaners, limit=None
     ):
         self.buffer = get_data_to_buffer(
             data_path, mel_ground_truth, alignment_path, text_cleaners, limit
