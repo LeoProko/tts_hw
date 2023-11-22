@@ -136,7 +136,7 @@ class Trainer(BaseTrainer):
                     self.model.eval()
                     self._log_predictions(is_train=True, **db)
                     self.model.train()
-                    self._log_spectrogram(db["mel_output"])
+                    self._log_spectrogram(db["mel_output"].detach())
                     self._log_scalars(self.train_metrics)
                     # we don't want to reset train metrics at the start of every epoch
                     # because we are interested in recent train metrics
