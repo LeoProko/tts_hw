@@ -194,7 +194,8 @@ class LengthRegulator(nn.Module):
         output = self.LR(x, duration.squeeze(-1))
 
         mel_pos = torch.stack(
-            [torch.tensor([i + 1 for i in range(output.size(1))])]
+            [torch.tensor([i + 1 for i in range(output.size(1))])],
+            device=x.device
         ).long()
 
         return output, mel_pos
