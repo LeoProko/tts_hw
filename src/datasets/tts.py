@@ -47,7 +47,7 @@ def get_data_to_buffer(
         )
 
     end = time.perf_counter()
-    print("cost {:.2f}s to load all data into buffer.".format(end - start))
+    print("cost {:.2f}s to load {} data into buffer.".format(end - start, len(buffer)))
 
     return buffer
 

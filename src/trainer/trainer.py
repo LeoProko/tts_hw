@@ -91,6 +91,7 @@ class Trainer(BaseTrainer):
             )
 
     def _train_epoch(self, epoch):
+        print("TRAIN LOADER LEN", len(self.train_dataloader))
         """
         Training logic for an epoch
 
