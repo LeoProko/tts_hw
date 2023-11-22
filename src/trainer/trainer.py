@@ -236,7 +236,7 @@ class Trainer(BaseTrainer):
                 "Wasserstein distance or Kantorovich Rubinstein metric is a distance function defined between probability distributions on a given metric space",
             ]
         ):
-            synthesis.synthesis(self.model, text, str(i))
+            synthesis.synthesis(self.model, text, str(i), self.device)
             self.writer.add_audio(
                 str(i),
                 self.load_audio(f"{i}.wav"),
