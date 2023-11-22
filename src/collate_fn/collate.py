@@ -101,4 +101,12 @@ def collate_fn(batch: List[dict]):
     for i in range(batchsize):
         output.append(reprocess_tensor(batch, cut_list[i]))
 
-    return output
+    return {
+        "src_seq": torch.tensor([item["src_seq"] for item in output]),
+        "mel_target": torch.tensor([item["mel_target"] for item in output]),
+        "length_target": torch.tensor([item["length_target"] for item in output]),
+        "mel_pos": torch.tensor([item["mel_pos"] for item in output]),
+        "src_pos": torch.tensor([item["src_pos"] for item in output]),
+        "mel_max_len": torch.tensor([item["mel_max_len"] for item in output]),
+    }
+    # return output
