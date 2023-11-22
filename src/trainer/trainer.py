@@ -217,7 +217,7 @@ class Trainer(BaseTrainer):
     def load_audio(self, path):
         audio_tensor, sr = torchaudio.load(path)
         audio_tensor = audio_tensor[0:1, :]
-        target_sr = self.config["preprocessing"]["sr"]
+        target_sr = self.config["sr"]
         if sr != target_sr:
             audio_tensor = torchaudio.functional.resample(audio_tensor, sr, target_sr)
         return audio_tensor
@@ -240,7 +240,7 @@ class Trainer(BaseTrainer):
             self.writer.add_audio(
                 str(i),
                 self.load_audio(f"{i}.wav"),
-                sample_rate=self.config["preprocessing"]["sr"],
+                sample_rate=self.config["sr"],
             )
 
     def _log_spectrogram(self, spectrogram_batch):
