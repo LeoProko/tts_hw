@@ -75,7 +75,6 @@ def reprocess_tensor(batch):
         )
     mel_pos = torch.from_numpy(np.array(mel_pos))
 
-    texts = pad_1D_tensor(texts)
     mel_targets = pad_2D_tensor(mel_targets)
 
     max_len = max(
@@ -83,8 +82,10 @@ def reprocess_tensor(batch):
             max([len(x) for x in energy_targets]),
             max([len(x) for x in pitch_targets]),
             max([len(x) for x in durations]),
+            max([len(x) for x in texts]),
         ]
     )
+    texts = pad_1D_tensor(texts, max_len)
     durations = pad_1D_tensor(durations, max_len)
     energy_targets = pad_1D_tensor(energy_targets, max_len)
     pitch_targets = pad_1D_tensor(pitch_targets, max_len)
