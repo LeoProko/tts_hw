@@ -77,18 +77,10 @@ def reprocess_tensor(batch):
 
     mel_targets = pad_2D_tensor(mel_targets)
 
-    max_len = max(
-        [
-            max([len(x) for x in energy_targets]),
-            max([len(x) for x in pitch_targets]),
-            max([len(x) for x in durations]),
-            max([len(x) for x in texts]),
-        ]
-    )
-    texts = pad_1D_tensor(texts, max_len)
-    durations = pad_1D_tensor(durations, max_len)
-    energy_targets = pad_1D_tensor(energy_targets, max_len)
-    pitch_targets = pad_1D_tensor(pitch_targets, max_len)
+    texts = pad_1D_tensor(texts)
+    durations = pad_1D_tensor(durations)
+    energy_targets = pad_1D_tensor(energy_targets)
+    pitch_targets = pad_1D_tensor(pitch_targets)
 
     out = {
         "src_seq": texts,

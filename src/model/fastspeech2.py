@@ -243,27 +243,18 @@ class VarianceApapter(nn.Module):
         duration_predictor_output = self.duration_predictor(x, duration_alpha)
 
         if self.training:
-            pitch_predictor_output = self.pitch_predictor(x, pitch_alpha)
-            pitch_emb = self.pitch_emb(
-                torch.bucketize(pitch_target.detach(), self.pitch_bins.detach())
-            )
-
-            energy_predictor_output = self.energy_predictor(x, energy_alpha)
-            energy_emb = self.energy_emb(
-                torch.bucketize(energy_target.detach(), self.energy_bins.detach())
-            )
-
-            print(
-                x.shape,
-                energy_target.shape,
-                energy_predictor_output.shape,
-                energy_emb.shape,
-            )
-
-            x = x + pitch_emb + energy_emb
-
             mel_output = self.length_regulator(
                 x, duration_alpha, length_target, None, max_len
+            )
+            
+            pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
+            pitch_emb = self.pitch_emb(
+                torch.bucketize(pitch_target.detach(), self.pitch_bins)
+            )
+
+            energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
+            energy_emb = self.energy_emb(
+                torch.bucketize(energy_target.detach(), self.energy_bins)
             )
 
             return (
@@ -278,12 +269,12 @@ class VarianceApapter(nn.Module):
         )
         pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
         pitch_emb = self.pitch_emb(
-            torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins.detach())
+            torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins)
         )
 
         energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
         energy_emb = self.energy_emb(
-            torch.bucketize(energy_predictor_output.detach(), self.energy_bins.detach())
+            torch.bucketize(energy_predictor_output.detach(), self.energy_bins)
         )
 
         return (
