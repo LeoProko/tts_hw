@@ -221,11 +221,11 @@ class VarianceApapter(nn.Module):
 
         # precalculated statistics
         self.pitch_bins = nn.Parameter(
-            torch.log1p(torch.linspace(70.0, 800.0, 255)),
+            torch.linspace(70.0, 800.0, 255),
             requires_grad=False,
         )
         self.energy_bins = nn.Parameter(
-            torch.log1p(torch.linspace(0.0, 1050.0, 255)),
+            torch.linspace(0.0, 1050.0, 255),
             requires_grad=False,
         )
 
