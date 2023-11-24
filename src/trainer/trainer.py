@@ -267,6 +267,7 @@ class Trainer(BaseTrainer):
             ]
         ):
             for duration_alpha, pitch_alpha, energy_alpha in [
+                (1.0, 1.0, 1.0),
                 (1.0, 1.0, 1.2),
                 (1.0, 1.0, 0.8),
                 (1.0, 1.2, 1.0),
