@@ -289,7 +289,7 @@ class Trainer(BaseTrainer):
                     energy_alpha,
                 )
                 self.writer.add_audio(
-                    str(i),
+                    output_path,
                     self.load_audio(output_path),
                     sample_rate=self.config["sr"],
                 )
