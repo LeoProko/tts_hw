@@ -243,7 +243,6 @@ class VarianceApapter(nn.Module):
         duration_predictor_output = self.duration_predictor(x, duration_alpha)
 
         if self.training:
-
             pitch_predictor_output = self.pitch_predictor(x, pitch_alpha)
             pitch_emb = self.pitch_emb(
                 torch.bucketize(pitch_target.detach(), self.pitch_bins)
@@ -254,9 +253,14 @@ class VarianceApapter(nn.Module):
                 torch.bucketize(energy_target.detach(), self.energy_bins)
             )
 
+            print(x.shape, pitch_emb.shape)
+
+            x = x + pitch_emb + energy_emb
+
             mel_output = self.length_regulator(
-                x + pitch_emb + energy_emb, duration_alpha, length_target, None, max_len
+                x, duration_alpha, length_target, None, max_len
             )
+
 
             return (
                 mel_output + pitch_emb + energy_emb,
