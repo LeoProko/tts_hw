@@ -11,6 +11,7 @@ def pad_1D_tensor(inputs, PAD_IDX=0):
         x_padded = F.pad(x, (0, length - x.shape[0]))
         return x_padded
 
+    print([x.shape for x in inputs])
     max_len = max((len(x) for x in inputs))
     padded = torch.stack([pad_data(x, max_len, PAD_IDX) for x in inputs])
 
