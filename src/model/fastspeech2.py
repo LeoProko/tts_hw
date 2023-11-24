@@ -245,12 +245,12 @@ class VarianceApapter(nn.Module):
         if self.training:
             pitch_predictor_output = self.pitch_predictor(x, pitch_alpha)
             pitch_emb = self.pitch_emb(
-                torch.bucketize(pitch_target.detach(), self.pitch_bins)
+                torch.bucketize(pitch_target.detach(), self.pitch_bins.detach())
             )
 
             energy_predictor_output = self.energy_predictor(x, energy_alpha)
             energy_emb = self.energy_emb(
-                torch.bucketize(energy_target.detach(), self.energy_bins)
+                torch.bucketize(energy_target.detach(), self.energy_bins.detach())
             )
 
             print(x.shape, energy_predictor_output.shape, energy_emb.shape)
@@ -274,12 +274,12 @@ class VarianceApapter(nn.Module):
         )
         pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
         pitch_emb = self.pitch_emb(
-            torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins)
+            torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins.detach())
         )
 
         energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
         energy_emb = self.energy_emb(
-            torch.bucketize(energy_predictor_output.detach(), self.energy_bins)
+            torch.bucketize(energy_predictor_output.detach(), self.energy_bins.detach())
         )
 
         return (
