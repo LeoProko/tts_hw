@@ -44,6 +44,7 @@ def get_data_to_buffer(
 
         character = torch.from_numpy(character)
         duration = torch.from_numpy(duration)
+        print(mel_gt_target.shape)
         mel_gt_target = torch.from_numpy(np.rot90(mel_gt_target, 3))
         energy_gt_target = torch.from_numpy(energy_gt_target)
         pitch_gt_target = torch.from_numpy(pitch_gt_target)
