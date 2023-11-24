@@ -5,7 +5,9 @@ from torch.utils.data import ConcatDataset, DataLoader
 import src.datasets
 from src import batch_sampler as batch_sampler_module
 from src.base.base_text_encoder import BaseTextEncoder
-from src.collate_fn.collate import collate_fn
+
+# from src.collate_fn.collate import collate_fn
+from src.collate_fn.collate2 import collate_fn
 from src.utils.parse_config import ConfigParser
 
 

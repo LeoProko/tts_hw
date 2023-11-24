@@ -4,12 +4,9 @@
 # from src.datasets.ljspeech_dataset import LJspeechDataset
 # from src.datasets.common_voice import CommonVoiceDataset
 from .tts import BufferDataset
+from .tts2 import BufferDataset2
 
 __all__ = [
-    # LibrispeechDataset,
-    # CustomDirAudioDataset,
-    # CustomAudioDataset,
-    # LJspeechDataset,
-    # CommonVoiceDataset,
     BufferDataset,
+    BufferDataset2,
 ]

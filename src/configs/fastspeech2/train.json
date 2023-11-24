@@ -1,0 +1,74 @@
+{
+  "name": "one_batch_test",
+  "n_gpu": 1,
+  "sr": 22050,
+  "arch": {
+    "type": "FastSpeech2",
+    "args": {
+      "emb_dim": 64,
+      "vocab_size": 300,
+      "max_seq_len": 3000,
+      "hidden_dim": 128,
+      "num_heads": 4,
+      "n_layers": 4,
+      "num_mels": 80,
+      "dropout": 0.1,
+      "fft_kernel_size_1": 9,
+      "fft_padding_1": 4,
+      "fft_kernel_size_2": 1,
+      "fft_padding_2": 0,
+      "predictor_kernel_size": 3
+    }
+  },
+  "data": {
+    "train": {
+      "batch_size": 30,
+      "num_workers": 0,
+      "datasets": [
+        {
+          "type": "BufferDataset2",
+          "args": {
+            "data_path": "./data/train.txt",
+            "mel_ground_truth": "./gen/mels",
+            "energy_ground_truth": "./gen/energy",
+            "pitch_ground_truth": "./gen/pitch",
+            "alignment_path": "./alignments",
+            "text_cleaners": ["english_cleaners"]
+          }
+        }
+      ]
+    }
+  },
+  "optimizer": {
+    "type": "Adam",
+    "args": {
+      "lr": 1e-3
+    }
+  },
+  "loss": {
+    "type": "FastSpeech2Loss",
+    "args": {}
+  },
+  "lr_scheduler": {
+    "type": "OneCycleLR",
+    "args": {
+      "steps_per_epoch": 500,
+      "epochs": 50,
+      "anneal_strategy": "cos",
+      "max_lr": 1e-3,
+      "pct_start": 0.1
+    }
+  },
+  "trainer": {
+    "epochs": 50,
+    "save_dir": "saved/",
+    "save_period": 5,
+    "verbosity": 2,
+    "monitor": "min mel_loss_train",
+    "early_stop": 1000,
+    "visualize": "wandb",
+    "wandb_project": "dla-3-tts",
+    "len_epoch": 500,
+    "grad_norm_clip": 10
+  }
+}

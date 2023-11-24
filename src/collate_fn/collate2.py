@@ -38,6 +38,8 @@ def pad_2D_tensor(inputs, maxlen=None):
 def reprocess_tensor(batch):
     texts = [item["src_seq"] for item in batch]
     mel_targets = [item["mel_target"] for item in batch]
+    energy_targets = [item["energy_target"] for item in batch]
+    pitch_targets = [item["pitch_target"] for item in batch]
     durations = [item["length_target"] for item in batch]
 
     length_text = []
@@ -75,10 +77,14 @@ def reprocess_tensor(batch):
     texts = pad_1D_tensor(texts)
     durations = pad_1D_tensor(durations)
     mel_targets = pad_2D_tensor(mel_targets)
+    energy_targets = pad_1D_tensor(energy_targets)
+    pitch_targets = pad_1D_tensor(pitch_targets)
 
     out = {
         "src_seq": texts,
         "mel_target": mel_targets,
+        "energy_target": energy_targets,
+        "pitch_target": pitch_targets,
         "length_target": durations,
         "mel_pos": mel_pos,
         "src_pos": src_pos,

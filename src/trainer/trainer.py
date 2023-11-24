@@ -58,6 +58,8 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker(
             "mel_loss",
             "duration_loss",
+            "pitch_loss",
+            "energy_loss",
             "grad norm",
             *[m.name for m in self.metrics],
             writer=self.writer,
@@ -65,6 +67,8 @@ class Trainer(BaseTrainer):
         self.evaluation_metrics = MetricTracker(
             "mel_loss",
             "duration_loss",
+            "pitch_loss",
+            "energy_loss",
             *[m.name for m in self.metrics],
             writer=self.writer,
         )
@@ -127,7 +131,12 @@ class Trainer(BaseTrainer):
                     "Train Epoch: {} {} Loss: {:.6f}".format(
                         epoch,
                         self._progress(batch_idx),
-                        (db["mel_loss"].item() + db["duration_loss"].item()),
+                        (
+                            db["mel_loss"]
+                            + db["duration_loss"]
+                            + db["pitch_loss"]
+                            + db["energy_loss"]
+                        ).item(),
                     )
                 )
                 self.writer.add_scalar(
@@ -157,18 +166,37 @@ class Trainer(BaseTrainer):
         if is_train:
             self.optimizer.zero_grad()
 
-        batch["mel_output"], batch["duration_predicted"] = self.model(**batch)
-        batch["mel_loss"], batch["duration_loss"] = self.criterion(**batch)
+        (
+            batch["mel_output"],
+            batch["duration_predicted"],
+            batch["pitch_predicted"],
+            batch["energy_predicted"],
+        ) = self.model(**batch)
+
+        (
+            batch["mel_loss"],
+            batch["duration_loss"],
+            batch["pitch_loss"],
+            batch["energy_loss"],
+        ) = self.criterion(**batch)
+
+        metrics.update("mel_loss", batch["mel_loss"].item())
+        metrics.update("duration_loss", batch["duration_loss"].item())
+        metrics.update("pitch_loss", batch["pitch_loss"].item())
+        metrics.update("energy_loss", batch["energy_loss"].item())
 
         if is_train:
-            (batch["mel_loss"] + batch["duration_loss"]).backward()
+            (
+                batch["mel_loss"]
+                + batch["duration_loss"]
+                + batch["pitch_loss"]
+                # + batch["energy_loss"]
+            ).backward()
             self._clip_grad_norm()
             self.optimizer.step()
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
-        metrics.update("mel_loss", batch["mel_loss"].item())
-        metrics.update("duration_loss", batch["duration_loss"].item())
         if is_train:
             for met in self.metrics:
                 metrics.update(met.name, met(**batch))
@@ -230,7 +258,7 @@ class Trainer(BaseTrainer):
     ):
         for i, text in enumerate(
             [
-                "Suck my big dick",
+                "Suck my big dick, bitch!",
                 "A defibrillator is a device that gives a high energy electric shock to the heart of someone who is in cardiac arrest",
                 "Massachusetts Institute of Technology may be best known for its math, science and engineering education",
                 "Wasserstein distance or Kantorovich Rubinstein metric is a distance function defined between probability distributions on a given metric space",

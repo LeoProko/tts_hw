@@ -110,6 +110,7 @@ wandb/
 waveglow/pretrained_model
 alignments/
 mels/
+gen/
 
 # editor, os cache directory
 .vscode/

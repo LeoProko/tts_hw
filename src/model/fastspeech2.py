@@ -114,7 +114,7 @@ class Encoder(nn.Module):
         return x
 
 
-class DurationPredictor(nn.Module):
+class PredictorBlock(nn.Module):
     def __init__(self, emb_dim, hidden_dim, kernel_size, dropout):
         super().__init__()
 
@@ -135,8 +135,8 @@ class DurationPredictor(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(self, x):
-        x = self.net(x)
+    def forward(self, x, alpha):
+        x = self.net(x) * alpha
 
         # if not self.training:
         #     x = x.unsqueeze(0)
@@ -147,9 +147,6 @@ class DurationPredictor(nn.Module):
 class LengthRegulator(nn.Module):
     def __init__(self, emb_dim, hidden_dim, kernel_size, dropout):
         super().__init__()
-        self.duration_predictor = DurationPredictor(
-            emb_dim, hidden_dim, kernel_size, dropout
-        )
 
     @staticmethod
     def create_alignment(base_mat, duration_predictor_output):
@@ -179,14 +176,13 @@ class LengthRegulator(nn.Module):
         output = alignment @ x
         if mel_max_len:
             output = F.pad(output, (0, 0, 0, mel_max_len - output.size(1), 0, 0))
+
         return output
 
-    def forward(self, x, alpha=1.0, target=None, mel_max_len=None):
-        duration = self.duration_predictor(x)
-
-        if target is not None:
-            output = self.LR(x, target, mel_max_len)
-            return output, duration
+    def forward(self, x, alpha, duration_target, duration, mel_max_len=None):
+        if duration_target is not None:
+            output = self.LR(x, duration_target, mel_max_len)
+            return output
 
         duration = (duration * alpha + 0.5).int()
 
@@ -197,6 +193,96 @@ class LengthRegulator(nn.Module):
         ).long()
 
         return output, mel_pos
+
+
+class VarianceApapter(nn.Module):
+    def __init__(
+        self,
+        emb_dim,
+        hidden_dim,
+        kernel_size,
+        dropout,
+    ):
+        super().__init__()
+
+        self.duration_predictor = PredictorBlock(
+            emb_dim, hidden_dim, kernel_size, dropout
+        )
+        self.length_regulator = LengthRegulator(
+            emb_dim, hidden_dim, kernel_size, dropout
+        )
+        self.pitch_predictor = PredictorBlock(emb_dim, hidden_dim, kernel_size, dropout)
+        self.energy_predictor = PredictorBlock(
+            emb_dim, hidden_dim, kernel_size, dropout
+        )
+
+        self.pitch_emb = nn.Embedding(256, emb_dim)
+        self.energy_emb = nn.Embedding(256, emb_dim)
+
+        # precalculated statistics
+        self.pitch_bins = nn.Parameter(
+            torch.linspace(70.0, 800.0, 255),
+            requires_grad=False,
+        )
+        self.energy_bins = nn.Parameter(
+            torch.linspace(0.0, 1050.0, 255),
+            requires_grad=False,
+        )
+
+    def forward(
+        self,
+        x,
+        duration_alpha,
+        pitch_alpha,
+        energy_alpha,
+        max_len=None,
+        pitch_target=None,
+        energy_target=None,
+        length_target=None,
+    ):
+        duration_predictor_output = self.duration_predictor(x, duration_alpha)
+
+        if self.training:
+            mel_output = self.length_regulator(
+                x, duration_alpha, length_target, None, max_len
+            )
+            pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
+            pitch_emb = self.pitch_emb(
+                torch.bucketize(pitch_target.detach(), self.pitch_bins)
+            )
+
+            energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
+            energy_emb = self.energy_emb(
+                torch.bucketize(energy_target.detach(), self.energy_bins)
+            )
+
+            return (
+                mel_output + pitch_emb + energy_emb,
+                duration_predictor_output,
+                pitch_predictor_output,
+                energy_predictor_output,
+            )
+
+        mel_output, mel_pos = self.length_regulator(
+            x, duration_alpha, None, duration_predictor_output, None
+        )
+        pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
+        pitch_emb = self.pitch_emb(
+            torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins)
+        )
+
+        energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
+        energy_emb = self.energy_emb(
+            torch.bucketize(energy_predictor_output.detach(), self.energy_bins)
+        )
+
+        return (
+            mel_output + pitch_emb.squeeze(2) + energy_emb.squeeze(2),
+            mel_pos,
+            duration_predictor_output,
+            pitch_predictor_output,
+            energy_predictor_output,
+        )
 
 
 class Decoder(nn.Module):
@@ -248,7 +334,7 @@ class Decoder(nn.Module):
         return x
 
 
-class FastSpeech(nn.Module):
+class FastSpeech2(nn.Module):
     def __init__(
         self,
         emb_dim,
@@ -280,8 +366,11 @@ class FastSpeech(nn.Module):
             fft_kernel_size_2,
             fft_padding_2,
         )
-        self.length_regulator = LengthRegulator(
-            emb_dim, hidden_dim, predictor_kernel_size, dropout
+        self.variance_adapter = VarianceApapter(
+            emb_dim,
+            hidden_dim,
+            predictor_kernel_size,
+            dropout,
         )
         self.decoder = Decoder(
             emb_dim,
@@ -317,26 +406,58 @@ class FastSpeech(nn.Module):
         self,
         src_seq,
         src_pos,
+        duration_alpha=1.0,
+        pitch_alpha=1.0,
+        energy_alpha=1.0,
         mel_pos=None,
         mel_max_len=None,
+        pitch_target=None,
+        energy_target=None,
         length_target=None,
-        alpha=1.0,
         *args,
         **kwargs
     ):
         x = self.encoder(src_seq, src_pos)
 
         if self.training:
-            mel_output, duration_predictor_output = self.length_regulator(
-                x, alpha, length_target, mel_max_len
+            (
+                mel_output,
+                duration_predictor_output,
+                pitch_predictor_output,
+                energy_predictor_output,
+            ) = self.variance_adapter(
+                x,
+                duration_alpha,
+                pitch_alpha,
+                energy_alpha,
+                mel_max_len,
+                pitch_target,
+                energy_target,
+                length_target,
             )
             mel_output = self.decoder(mel_output, mel_pos)
             mel_output = self.mask_tensor(mel_output, mel_pos, mel_max_len)
             mel_output = self.mel_linear(mel_output)
 
-            return mel_output, duration_predictor_output
+            return (
+                mel_output,
+                duration_predictor_output,
+                pitch_predictor_output,
+                energy_predictor_output,
+            )
 
-        mel_output, mel_pos = self.length_regulator(x, alpha)
+        (
+            mel_output,
+            mel_pos,
+            duration_predictor_output,
+            pitch_predictor_output,
+            energy_predictor_output,
+        ) = self.variance_adapter(
+            x,
+            duration_alpha,
+            pitch_alpha,
+            energy_alpha,
+        )
         mel_output = self.decoder(mel_output, mel_pos)
         mel_output = self.mel_linear(mel_output)
 
