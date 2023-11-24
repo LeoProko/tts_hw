@@ -81,6 +81,8 @@ class Trainer(BaseTrainer):
         for tensor_for_gpu in [
             "src_seq",
             "mel_target",
+            "energy_target",
+            "pitch_target",
             "length_target",
             "mel_pos",
             "src_pos",
