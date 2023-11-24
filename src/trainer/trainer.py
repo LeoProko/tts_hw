@@ -264,12 +264,33 @@ class Trainer(BaseTrainer):
                 "Wasserstein distance or Kantorovich Rubinstein metric is a distance function defined between probability distributions on a given metric space",
             ]
         ):
-            synthesis.synthesis(self.model, text, str(i), self.device)
-            self.writer.add_audio(
-                str(i),
-                self.load_audio(f"{i}.wav"),
-                sample_rate=self.config["sr"],
-            )
+            for duration_alpha, pitch_alpha, energy_alpha in [
+                (1.0, 1.0, 1.2),
+                (1.0, 1.0, 0.8),
+                (1.0, 1.2, 1.0),
+                (1.0, 0.8, 1.0),
+                (1.2, 1.0, 1.0),
+                (0.8, 1.0, 1.0),
+                (0.8, 0.8, 0.8),
+                (1.2, 1.2, 1.2),
+            ]:
+                output_path = (
+                    f"{i}_d{duration_alpha}_p{pitch_alpha}_e{energy_alpha}.wav"
+                )
+                synthesis.synthesis(
+                    self.model,
+                    text,
+                    output_path,
+                    self.device,
+                    duration_alpha,
+                    pitch_alpha,
+                    energy_alpha,
+                )
+                self.writer.add_audio(
+                    str(i),
+                    self.load_audio(output_path),
+                    sample_rate=self.config["sr"],
+                )
 
     def _log_spectrogram(self, spectrogram_batch):
         spectrogram = random.choice(spectrogram_batch.cpu())
