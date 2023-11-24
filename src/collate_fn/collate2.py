@@ -6,13 +6,13 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def pad_1D_tensor(inputs, PAD_IDX=0):
+def pad_1D_tensor(inputs, max_len=None, PAD_IDX=0):
     def pad_data(x, length, PAD):
         x_padded = F.pad(x, (0, length - x.shape[0]))
         return x_padded
 
-    print([x.shape for x in inputs])
-    max_len = max((len(x) for x in inputs))
+    if max_len is None:
+        max_len = max((len(x) for x in inputs))
     padded = torch.stack([pad_data(x, max_len, PAD_IDX) for x in inputs])
 
     return padded
@@ -76,10 +76,13 @@ def reprocess_tensor(batch):
     mel_pos = torch.from_numpy(np.array(mel_pos))
 
     texts = pad_1D_tensor(texts)
-    durations = pad_1D_tensor(durations)
     mel_targets = pad_2D_tensor(mel_targets)
-    energy_targets = pad_1D_tensor(energy_targets)
-    pitch_targets = pad_1D_tensor(pitch_targets)
+
+
+    max_len = max([max([len(x) for x in energy_targets]), max([len(x) for x in pitch_targets]), max([len(x) for x in durations])])
+    durations = pad_1D_tensor(durations, max_len)
+    energy_targets = pad_1D_tensor(energy_targets, max_len)
+    pitch_targets = pad_1D_tensor(pitch_targets, max_len)
 
     out = {
         "src_seq": texts,
