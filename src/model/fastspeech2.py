@@ -221,11 +221,11 @@ class VarianceApapter(nn.Module):
 
         # precalculated statistics
         self.pitch_bins = nn.Parameter(
-            torch.linspace(70.0, 800.0, 255),
+            torch.log1p(torch.linspace(70.0, 800.0, 255)),
             requires_grad=False,
         )
         self.energy_bins = nn.Parameter(
-            torch.linspace(0.0, 1050.0, 255),
+            torch.log1p(torch.linspace(0.0, 1050.0, 255)),
             requires_grad=False,
         )
 
@@ -247,18 +247,18 @@ class VarianceApapter(nn.Module):
                 x, duration_alpha, length_target, None, max_len
             )
             
-            pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
+            pitch_predictor_output = torch.log1p(self.pitch_predictor(mel_output, pitch_alpha))
             pitch_emb = self.pitch_emb(
                 torch.bucketize(pitch_target.detach(), self.pitch_bins)
             )
 
-            energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
+            energy_predictor_output = torch.log1p(self.energy_predictor(mel_output, energy_alpha))
             energy_emb = self.energy_emb(
                 torch.bucketize(energy_target.detach(), self.energy_bins)
             )
 
             return (
-                mel_output + torch.log1p(pitch_emb) + torch.log1p(energy_emb),
+                mel_output + pitch_emb + energy_emb,
                 duration_predictor_output,
                 pitch_predictor_output,
                 energy_predictor_output,
@@ -267,18 +267,18 @@ class VarianceApapter(nn.Module):
         mel_output, mel_pos = self.length_regulator(
             x, duration_alpha, None, duration_predictor_output, None
         )
-        pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
+        pitch_predictor_output = torch.log1p(self.pitch_predictor(mel_output, pitch_alpha))
         pitch_emb = self.pitch_emb(
             torch.bucketize(pitch_predictor_output.detach(), self.pitch_bins)
         )
 
-        energy_predictor_output = self.energy_predictor(mel_output, energy_alpha)
+        energy_predictor_output = torch.log1p(self.energy_predictor(mel_output, energy_alpha))
         energy_emb = self.energy_emb(
             torch.bucketize(energy_predictor_output.detach(), self.energy_bins)
         )
 
         return (
-            mel_output + torch.log1p(pitch_emb.squeeze(2)) + torch.log1p(energy_emb.squeeze(2)),
+            mel_output + pitch_emb.squeeze(2) + energy_emb.squeeze(2),
             mel_pos,
             duration_predictor_output,
             pitch_predictor_output,
