@@ -5,10 +5,10 @@
   "arch": {
     "type": "FastSpeech2",
     "args": {
-      "emb_dim": 64,
+      "emb_dim": 256,
       "vocab_size": 300,
       "max_seq_len": 3000,
-      "hidden_dim": 128,
+      "hidden_dim": 1024,
       "num_heads": 4,
       "n_layers": 4,
       "num_mels": 80,
