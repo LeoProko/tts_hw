@@ -253,7 +253,7 @@ class VarianceApapter(nn.Module):
                 torch.bucketize(energy_target.detach(), self.energy_bins.detach())
             )
 
-            print(x.shape, energy_predictor_output.shape, energy_emb.shape)
+            print(x.shape, energy_target.shape, energy_predictor_output.shape, energy_emb.shape)
 
             x = x + pitch_emb + energy_emb
 
