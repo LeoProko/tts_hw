@@ -27,12 +27,16 @@ class FastSpeech2Loss(nn.Module):
             torch.log1p(length_target.float()),
         )
         pitch_predictor_loss = self.mse(
-            torch.log1p(pitch_predicted.squeeze()),
-            torch.log1p(pitch_target.float()),
+            # torch.log1p(pitch_predicted.squeeze()),
+            # torch.log1p(pitch_target.float()),
+            pitch_predicted.squeeze(),
+            pitch_target.float(),
         )
         energy_predictor_loss = self.mse(
-            torch.log1p(energy_predicted.squeeze()),
-            torch.log1p(energy_target.float()),
+            # torch.log1p(energy_predicted.squeeze()),
+            # torch.log1p(energy_target.float()),
+            energy_predicted.squeeze(),
+            energy_target.float(),
         )
 
         return (
