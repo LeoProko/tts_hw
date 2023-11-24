@@ -258,7 +258,7 @@ class VarianceApapter(nn.Module):
             )
 
             return (
-                mel_output + pitch_emb + energy_emb,
+                mel_output + torch.log1p(pitch_emb) + torch.log1p(energy_emb),
                 duration_predictor_output,
                 pitch_predictor_output,
                 energy_predictor_output,
@@ -278,7 +278,7 @@ class VarianceApapter(nn.Module):
         )
 
         return (
-            mel_output + pitch_emb.squeeze(2) + energy_emb.squeeze(2),
+            mel_output + torch.log1p(pitch_emb.squeeze(2)) + torch.log1p(energy_emb.squeeze(2)),
             mel_pos,
             duration_predictor_output,
             pitch_predictor_output,
