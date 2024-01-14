@@ -192,7 +192,7 @@ class Trainer(BaseTrainer):
                 batch["mel_loss"]
                 + batch["duration_loss"]
                 + batch["pitch_loss"]
-                # + batch["energy_loss"]
+                + batch["energy_loss"]
             ).backward()
             self._clip_grad_norm()
             self.optimizer.step()
