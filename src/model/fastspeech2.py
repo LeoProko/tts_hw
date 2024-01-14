@@ -221,11 +221,13 @@ class VarianceApapter(nn.Module):
 
         # precalculated statistics
         self.pitch_bins = nn.Parameter(
-            torch.linspace(70.0, 800.0, 255),
+            # torch.linspace(70.0, 800.0, 255),
+            torch.linspace(0.0, 6.5, 255),
             requires_grad=False,
         )
         self.energy_bins = nn.Parameter(
-            torch.linspace(0.0, 1050.0, 255),
+            # torch.linspace(0.0, 1050.0, 255),
+            torch.linspace(0.01, 5.0, 255),
             requires_grad=False,
         )
 
@@ -246,7 +248,7 @@ class VarianceApapter(nn.Module):
             mel_output = self.length_regulator(
                 x, duration_alpha, length_target, None, max_len
             )
-            
+
             pitch_predictor_output = self.pitch_predictor(mel_output, pitch_alpha)
             pitch_emb = self.pitch_emb(
                 torch.bucketize(pitch_target.detach(), self.pitch_bins)
@@ -258,7 +260,7 @@ class VarianceApapter(nn.Module):
             )
 
             return (
-                mel_output + itch_emb + energy_emb,
+                mel_output + pitch_emb + energy_emb,
                 duration_predictor_output,
                 pitch_predictor_output,
                 energy_predictor_output,

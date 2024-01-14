@@ -40,9 +40,12 @@
     }
   },
   "optimizer": {
-    "type": "Adam",
+    "type": "AdamW",
     "args": {
-      "lr": 1e-3
+      "lr": 1e-3,
+      "betas": [0.9, 0.98],
+      "eps": 1e-9,
+      "weight_decay": 1e-6
     }
   },
   "loss": {
@@ -52,7 +55,7 @@
   "lr_scheduler": {
     "type": "OneCycleLR",
     "args": {
-      "steps_per_epoch": 100,
+      "steps_per_epoch": 500,
       "epochs": 50,
       "anneal_strategy": "cos",
       "max_lr": 1e-3,
@@ -62,13 +65,13 @@
   "trainer": {
     "epochs": 50,
     "save_dir": "saved/",
-    "save_period": 5,
+    "save_period": 2,
     "verbosity": 2,
     "monitor": "min mel_loss_train",
     "early_stop": 1000,
     "visualize": "wandb",
     "wandb_project": "dla-3-tts",
-    "len_epoch": 100,
-    "grad_norm_clip": 10
+    "len_epoch": 500,
+    "grad_norm_clip": 5
   }
 }
